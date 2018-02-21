@@ -41,8 +41,9 @@
 \setcounter{secnumdepth}{0} % Don't number sections or below
 
 \newcommand{\GEMINI}{\href{https://gemini.readthedocs.io}{GEMINI} } % Custom command for referring to GEMINI
+\newcommand{\titlepageguidename}{Usage Guide} % Custom command for the guide name on the title page
 
-\newcommand{\version}{v1.0} % Document version
+\newcommand{\version}{v1.1} % Document version
 
 %----------------------------------------------------------------------------------------
 
@@ -170,6 +171,8 @@ Any time one of the row entries in the results table is underlined, you can clic
 
 Under the results table you will find a number of boxes with annotation names, such as ``Genotypes'', ``OMIM'' and ``CADD Scores''. Some of these are already selected by default while others can be clicked to select them. Doing so will dynamically add the columns for the annotation to the results table. You can show as many annotations at a time as you'd like, although the table will quickly fill up with columns if too many are shown at once. The width of the results table can be increased by clicking ``Increase/decrease table width" below the table which will give you some more room to play with. To see more information about annotations and their current versions used by Seave, click ``Data Sources" on the top menu.
 
+Variants reported by Seave should be almost always manually validated using the alignment files in IGV. Seave speeds this process up via the ``Navigate in IGV" button under the results table. Clicking this button brings up an ``IGV" button for each variant on the far right of the results table. To validate a particular variant, open IGV and load the relevant BAM file(s). Then, click the ``IGV" button for the variant of interest and Seave will momentarily open a new browser tab which will automatically close within a second, this will cause IGV to navigate to the position of the variant automatically.
+
 Typically, the results table is useful to quickly explore a genome, but when you need to see all of the variant annotations and start further prioritising variants, it is useful to export the variants to a spreadsheet. To enable this, Seave lets you download the full results table containing all variants and annotations by clicking ``Download query results (.tsv format)'' under the results table. You may need to right click it and select Download if clicking the text does not lead to a file download. The .tsv file can be opened in any spreadsheet software such as Microsoft Excel for further exploration and filtration. A useful trick for further sub-filtering the results in Excel is to use the data filter feature to deselect values you are not interested in per annotation column to dynamically remove them from the spreadsheet.
 
 Once you are finished on the results page, if you need to go back and modify your query, click the ``Back to query options'' button at the bottom of the page. This will take you back to the query page and all of the query parameters will be retained as they were run for your previous query. This lets you rapidly change one parameter while keeping everything else the same. Alternatively, if you need to go back and change the analysis type, click ``Back to family and analysis selection'' at the bottom of the page. Even if you change the family or analysis type, your query options will still be kept, allowing you to rapidly query multiple families and/or analysis types with the same query settings.
@@ -237,8 +240,6 @@ The results are organised where each row is a separate set of coordinates shared
 Structural variants such as inversions and translocations are stored as 2 linked blocks in the GBS, one for each break point. The assumption is that the internal genomic code is not affected by the event, but only the break points themselves. This analysis will return all structural variant blocks where one or both of the break points of the event are inside a gene. You can select one or more gene lists and enter a custom gene list to restrict your search to specific genes, or leave the query options blank to search the entire genome.
 
 Results first show the event type, then information for the first break point block (``Block1 ...'' columns), followed by information for the second break point block (``Block2 ...'' columns). The gene columns let you quickly see which gene or genes have been affected by the event and the annotations for each block can be found in the .tsv download file for determining whether the event is real.
-
-% TODO: mention the link between the GBS and short variants here or in the short variants sections? or both?
 
 %----------------------------------------------------------------------------------------
 
