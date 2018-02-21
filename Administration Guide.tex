@@ -1,0 +1,878 @@
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[11pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc} % Required for inputting international characters
+\usepackage[T1]{fontenc} % Output font encoding for international characters
+
+\usepackage{mathpazo} % Palatino
+
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
+
+\usepackage{hyperref}
+\hypersetup{
+	colorlinks=true,
+	urlcolor=DarkSlateGrey, % For \url links
+	linkcolor=DarkSlateGrey % For \nameref links
+}
+
+\usepackage{listings} % For code snippets
+
+\usepackage{graphicx} % Required for inserting images
+\graphicspath{ {images/} } % Paths to where images are stored
+
+\lstset{
+	numbers=left,
+	numbersep=6pt,
+	numberstyle=\tiny\it,
+	%showtabs=true,
+	frame=single,
+	basicstyle=\tt\small,
+	tabsize=5,
+	breaklines=true, % Break long lines into multiple lines
+	aboveskip=\baselineskip % Whitespace before the listing
+}
+
+\setlength{\parindent}{0pt} % Stop paragraph indentation
+\setlength{\parskip}{6pt} % Spacing between paragraphs
+
+\setcounter{secnumdepth}{0} % Don't number sections or below
+
+\newcommand{\GEMINI}{\href{https://gemini.readthedocs.io}{GEMINI} } % Custom command for referring to GEMINI
+\newcommand{\titlepageguidename}{Administration Guide} % Custom command for the guide name on the title page
+
+\newcommand{\version}{v1.0} % Document version
+
+%----------------------------------------------------------------------------------------
+
+\begin{document}
+
+%----------------------------------------------------------------------------------------
+%	TITLE PAGE
+%----------------------------------------------------------------------------------------
+
+\input{titlepage.tex}
+
+%----------------------------------------------------------------------------------------
+%	PURPOSE PAGE
+%----------------------------------------------------------------------------------------
+
+\newpage
+
+~
+\vfill
+
+\begin{center}
+	\Large\bfseries\itshape
+	This guide is for Seave administrators and describes\\ how to maintain and manage a Seave server.
+	
+	\vspace{2\baselineskip} 
+
+	It assumes that are you comfortable with cloud computing, Linux, MySQL and server administration.
+\end{center}
+
+\vfill\vfill
+~
+
+\newpage
+
+%----------------------------------------------------------------------------------------
+%	TABLE OF CONTENTS
+%----------------------------------------------------------------------------------------
+
+\tableofcontents % Print the ToC
+
+%----------------------------------------------------------------------------------------
+%	ABOUT & ACKNOWLEDGEMENTS PAGE
+%----------------------------------------------------------------------------------------
+
+\input{headers.tex}
+
+%----------------------------------------------------------------------------------------
+%	INSTALLATION
+%----------------------------------------------------------------------------------------
+
+\newpage
+
+\section{Installation}
+
+\subsection{Installation Options}
+
+As Seave is a web-based platform, it is designed to be installed on a webserver under your control and used by multiple users by navigating to the URL/IP of the server.
+
+The recommended method of creating such a server is to use \href{https://aws.amazon.com}{Amazon Web Services}, a cloud platform for which a server image (AMI) of Seave is supplied. This image contains the Seave code as well as all software packages required for Seave to run correctly --- \textit{most of the setup has been taken care of for you}. Please make sure to configure your Seave server immediately after creating it or it is extremely vulnerable; you can find information for how to do so in the \nameref{initialConfiguration} section.
+
+Advanced users may wish to run Seave on their own hardware either on a private server or locally on their computer. This is possible but requires quite a bit more configuration, it is not recommended and not supported. Nonetheless, some instructions to do so can be found in the \nameref{localSeaveInstallation} section of this documentation.
+
+%------------------------------------------------
+
+\subsection{Amazon Machine Image (AMI)}
+
+The Seave AMI can be found in 2 AWS regions: Asia Pacific (Sydney) and US East (N. Virginia). To find it, navigate to the AMIs section of your AWS interface and change "Owned by me" to "Public images" in the dropdown to the left of the search box. After this, search for "SeaveAMI" in the search box and the image should appear. You can now start your own instance (server) using this image. A t2.micro instance is sufficient to run Seave on a smaller scale, but you may want to provision more resources if you will have many concurrent users and/or very large databases. You should open up ports 80 and 443 (http/https) to the world and port 22 (SSH) to your or your institution's IP range for logging in to the server. All outbound connections should be allowed.
+
+Once your instance is running, it will be provisioned a public IP address by AWS. You can further provision a permanent public IP address under "Elastic IPs" and assign this to the instance. This permanent public IP can then be assigned to a domain name via DNS settings so users simply navigate to "seave.myinstitute.org" to visit the institute's Seave. At this point you can now open your browser and navigate to either the IP address of the server or the domain, if you have set that up, to see your fresh Seave server.
+
+%------------------------------------------------
+
+\subsection{Important Initial Configuration}\label{initialConfiguration}
+
+{\large\textbf{\color{red}This section is very important if you have just started a new Seave server. Please make the changes here immediately or your Seave is very insecure.}}
+
+\subsubsection{SSL}
+
+By default, Seave will redirect all requests to https (SSL) using a self-signed certificate. Most browsers will complain loudly about this as it is an insecure practice to use a self-signed certificate. While it can be forcibly bypassed, you should deal with this instead by either adding in your own SSL certificate or disabling this redirection. Indeed, the reason we configure it this way by default is that adding your own certificate is easy and results in users securely communicating with the server --- see the \nameref{settingUpSSL} section for how to do this. To disable the redirection to https, SSH in to the server and navigate to \texttt{/var/www/html}. Open the \texttt{.htaccess} in your editor of choice and remove all lines in the "\texttt{\# When the request is using HTTPS}" and "\texttt{\# When the request is using HTTP}" blocks.
+
+\subsubsection{User Accounts}
+
+A fresh Seave server will have the following two user accounts already created:
+\begin{enumerate}
+	\item \textbf{Administrator} Username: admin@seave.bio Password: yA0s8KHF
+	\item \textbf{User} Username: default@seave.bio Password: u0FKn5DA
+\end{enumerate}
+
+Since these passwords are public, anyone can log in with these details into your new Seave server. To fix this, log in to the Seave website under the administrator account and navigate to the User Administration page. Then, either change the password for both accounts or create new ones to replace them (deleting the old ones), using correct email addresses for your organisation.
+
+\subsubsection{Seave Tokens and MySQL Password}
+
+Next, you will need to SSH in to the server and navigate to \texttt{/var/www/html}. Here you will find the file \texttt{config.ini}. Open it in your editor of choice and change the tokens on the following lines:
+\begin{enumerate}
+	\item \texttt{gbs\_import\_token=} ...
+	\item \texttt{gemini\_db\_import\_token=} ...
+\end{enumerate}
+
+While it is not strictly necessary provided you have secured the webserver (i.e. not opened port 3306 used by MySQL to the world), it's nonetheless a good idea to also change the \texttt{[mysql] password=} value in \texttt{config.ini} and the corresponding password in the MySQL server running on the Seave webserver. This will protect against accidental misconfiguration where port 3306 is opened to external traffic and the public password is used to log in to the MySQL server by a third party.
+
+\subsubsection{SSH Keys}
+
+When you launch an instance, AWS will ask you which SSH key you would like to use for connecting to it --- a new one or an existing one. It will then dutifully add this SSH key to the \texttt{authorized\_keys} file on the instance.
+
+The Seave AMI already comes configured with an SSH key inserted by the developer (Vel) If you need support for your Seave, this means it can be connected to without any configuration on your part (besides firewall access). However, this is a back door, and if you'd rather not have this option, you can delete this key from having access to your Seave. You can do this by navigating to \texttt{/home/ubuntu/.ssh} and removing the line ending in \texttt{SeaveAMI} in the \texttt{authorized\_keys} file.
+
+%----------------------------------------------------------------------------------------
+%	IMPORTING DATA
+%----------------------------------------------------------------------------------------
+
+\section{Importing Data}
+
+Seave stores short variants (SNPs and Indels) in \GEMINI databases as files and long variants (CNVs and SVs) in the Genome Block Store within the internal MySQL database. There are multiple ways to import data into each.
+
+%------------------------------------------------
+
+\subsection{GEMINI Databases}\label{geminiImport}
+
+\GEMINI databases must be produced with \GEMINI and are files with a .db file extension. These files can be imported into Seave in one of three ways:
+
+\begin{enumerate}
+	\item Through the Database Administration page when you are logged in as an administrator in Seave. Navigate to this page and you will see a ``Add a new database'' section which invites you to enter a URL to a database and select a Seave group to import the database into. You will need to create a URL pointing to your \GEMINI database through something like Dropbox, DNAnexus, AWS S3 or your institution's HPC cluster. After you click ``Add database'', Seave will verify the URL and begin downloading the file into the selected group. During this time it will be unusable in the web browser from which you launched the import. This process can take minutes for panel/exome databases up to hours for larger databases containing many whole genomes, depending on the connection speed between your Seave server and the server hosting the database. After the import is successful, you will see a message to the effect, except if the import took a long time and your connection to Seave was severed in the mean time. 
+	\item You can directly copy the database file into the right directory containing the databases on your Seave server. This directory is specified in config.ini file in the web root under the \texttt{[gemini]} heading in \texttt{db\_dir=}. Within this directory are each of the Seave groups you have set up as sub-directories, copy the database into the correct sub-directory to automatically assign it to that group. Copying to the server can be performed with the standard \texttt{scp} or \texttt{rsync} commands.
+	\item Databases can be imported automatically using the Seave import API. To use this method, you must navigate to a specific URL containing information that Seave uses to import your database. This method is most suited to automated systems that import data at the end of a bioinformatics pipeline so are easily capable of constructing the URL required. The URL is to the \texttt{dx\_import.php} page of your Seave server with a number of GET variables to populate:
+	\begin{itemize}
+		\item \textbf{token} (\textit{required}) --- Token for authentication, specified in config.ini under the \texttt{[dx\_import]} heading in \texttt{gemini\_db\_import\_token=}
+		\item \textbf{url} (\textit{required}) --- URL to your \GEMINI database, must end with .db
+		\item \textbf{import\_type} (\textit{required}) --- Always a value of \texttt{gemini\_db}
+		\item \textbf{group} (\textit{required}) --- The group to import the database into, the group must exist
+		\item \textbf{test} (\textit{optional}) --- A value of \texttt{bamboo} to import the database completely and then automatically delete it; this is optionally used for testing purposes only
+		\item \textbf{md5} (\textit{optional}) --- An optional MD5 hash of the database file, Seave will generate an MD5 hash after downloading the database and compare it against the submitted value to ensure data integrity
+	\end{itemize}
+	
+	An example of an import URL is:
+	
+	\url{https://www.seave.bio/dx_import.php?token=d8e8fca2dc0f896fd7cb4cb0031ba249&url=https://dl.dnanex.us/F/D/yvJgVbQqx59VBXFyykykVv8y26RPxQp0BiPqXZbY/321773.G1.hc.vep.db&md5=d41d8cd98f00b204e9800998ecf8427e&import_type=gemini_db&group=KCCG}
+\end{enumerate}
+
+%------------------------------------------------
+
+\subsection{Genome Block Store}\label{GBSImport}
+
+Large variants must be produced using one of the allowed tools and can be imported into the Genome Block Store in one of two ways:
+
+\begin{enumerate}
+	\item Through the GBS Administration page when you are logged in as an administrator in Seave. Navigate to this page and you will see a ``Import genomic blocks'' section which invites you to select a method, enter a sample (for some methods) and upload a genomic blocks file from the method selected. The file you must upload differs per method and is specified under the upload button. Upon specifying this information and clicking ``Import genomic blocks'', Seave will parse the file you selected for genomic blocks and display them to you in a table. Carefully inspect this table to make sure the information matches what is in the input file and once you are satisfied click ``This data is correct, import it''. After a short period, your data will be saved in the GBS and will be immediately linked to any \GEMINI databases with the same sample name(s).
+	\item GBS data can be imported automatically using the Seave import API. To use this method, you must navigate to a specific URL containing information that Seave uses to import your GBS data file. This method is most suited to automated systems that import data at the end of a bioinformatics pipeline so are easily capable of constructing the URL required. The URL is to the \texttt{dx\_import.php} page of your Seave server with a number of GET variables to populate:
+	\begin{itemize}
+		\item \textbf{token} (\textit{required}) --- Token for authentication, specified in config.ini under the \texttt{[dx\_import]} heading in \texttt{gbs\_import\_token=}
+		\item \textbf{method} (\textit{required}) --- The software used to generate the GBS import file, must be one of CNVnator, LUMPY, Sequenza, ROHmer, VarpipeSV, Manta or CNVkit
+		\item \textbf{url} (\textit{required}) --- URL to your GBS import file, must end with the relevant extension for the method specified
+		\item \textbf{import\_type} (\textit{required}) --- Always a value of \texttt{GBS}
+		\item \textbf{sample\_name} (\textit{required sometimes}) --- If the sample name is not specified in the data file for the method selected, it must be specified here
+		\item \textbf{test} (\textit{optional}) --- A value of \texttt{bamboo} to import the GBS data completely and then automatically delete it; this is optionally used for testing purposes only
+		\item \textbf{md5} (\textit{optional}) --- An optional MD5 hash of the import file, Seave will generate an MD5 hash after downloading the file and compare it against the submitted value to ensure data integrity
+	\end{itemize}
+	
+	An example of an import URL is:
+	
+	\url{https://www.seave.bio/dx_import.php?token=d8e8fca2dc0f896fd7cb4cb0031ba249&url=https://dl.dnanex.us/F/D/PzJ1z7PbkW2p85gG9P1v9J3FnzvQS12DJqHP3bbv/321773.D1vsG1.manta.somaticSV.vcf.gz&md5=be616328d6eb1c36ac8d218de0e4ef51&import_type=GBS&method=Manta&sample_name=321773_T}
+\end{enumerate}
+
+%----------------------------------------------------------------------------------------
+%	GENE LISTS
+%----------------------------------------------------------------------------------------
+
+\section{Modifying Gene Lists}
+
+Seave allows the creation, modification and deletion of gene lists on the Gene List Administration page when you are logged in as an administrator. You can find a link to the Gene List Administration page on the home page or by hovering over ``Databases'' on the top menu and clicking ``Gene List Administration''. 
+
+%------------------------------------------------
+
+\subsection{Add a Gene List}
+
+The ``Add gene list'' section of the page allows you to enter a gene list name which will be created as an empty list --- indicated by the (0) after the list name anywhere it appears.
+
+%------------------------------------------------
+
+\subsection{Add Gene(s) to List(s)}\label{addGenestoLists}
+
+To add genes to this new list, or an existing one, select one or more lists in the ``Add gene(s) to list(s)'' section and type in semicolon-delimited gene names in the box below. Seave will validate the genes you enter against a list of valid gene names and add the ones that pass to the gene list(s) selected. If any genes you enter are not found to be valid, you will get a list of these and you will need to find their synonyms and add them to the list(s) again until you are successful. For more information on this validation see the \nameref{geneNameValidation} section. 
+
+%------------------------------------------------
+
+\subsection{Remove Gene(s) from List(s)}
+
+Removing genes from one or more gene lists works the same way as adding them, this time in the ``Delete gene(s) from list(s)'' section. The only validation on gene names entered will be whether they exist in the gene list(s) you select.
+
+%------------------------------------------------
+
+\subsection{Remove Gene List}
+
+An entire gene list can be removed in the ``Delete gene list'' section by selecting a gene list in the dropdown menu. This will immediately delete the gene list from Seave so it no longer appears on any query page. Deletions of gene lists are logged in the Seave database in case a mistake is made, but are not readily able to be restored. If you need to see the genes that were in a gene list that was deleted, log in to the MySQL server and run the following query, filling in the deleted gene list name:
+
+\begin{lstlisting}
+SELECT gene_name, date_deleted FROM KCCG_GENE_LISTS.gene_lists_deletions WHERE list_name = '<gene list name>';
+\end{lstlisting}
+
+%------------------------------------------------
+
+\subsection{Rename Gene List}
+
+A gene list can be renamed in the ``Rename gene list'' section, first select the gene list you wish to rename in the dropdown menu and then enter the new list name in the input box below.
+
+%------------------------------------------------
+
+\subsection{View Genes in List}
+
+The ``View genes in gene list'' section allows you to view all genes in the gene list you select from the dropdown menu. This includes the date and time when each gene was added to the list and also includes a download link to a tab-separated TSV file for importing the gene list into a spreadsheet like Excel.
+
+%----------------------------------------------------------------------------------------
+%	USERS AND GROUPS
+%----------------------------------------------------------------------------------------
+
+\section{Modifying Users and Groups}
+
+Seave contains a user and group management system that allows administrators to manage access to data. Every \GEMINI database on Seave belongs to a single group and users can have access to any number of groups. If a user is in multiple groups, they will see (and be able to query) all databases within the groups they have access to on the Databases page. To manage users and groups, you must log in as an administrator and click the ``User administration'' button on the home page, or alternatively you can find a link on the top menu by hovering over ``Databases'' and clicking ``User Administration''.
+
+%------------------------------------------------
+
+\subsection{Add a Group}
+
+The first section titled ``Add a group'' allows you to create a new group in Seave. Enter a group name in the ``Group name'' box, this is the \textbf{user-facing} name for the group and must only contain letters and numbers (no spaces) not exceeding 50 characters in length. Add a description of the group underneath in the ``Short description'' box, this is just a long form expansion of what/who the group is for.
+
+%------------------------------------------------
+
+\subsection{Add a User}
+
+Adding a user to Seave can be done in the next section titled ``Add a user''. Enter the new user's email address and a password for their account and click ``Add user'' to add them to Seave. The password must be managed by administrators, there is currently no functionality for non-administrator users to change their own passwords. Passwords are stored as salted hashes in Seave so there is no way to extract a user's password from the database.
+
+%------------------------------------------------
+
+\subsection{Remove a Group}
+
+The next two sections titled ``Remove a group'' and ``Remove a user'' are for removing groups or users from Seave. Each contains a dropdown menu of all groups or users and a button to remove the selected option. Groups can only be removed when there are no databases belonging to them. Users can be removed without any restrictions.
+
+%------------------------------------------------
+
+\subsection{Manage User-Group Membership}
+
+User-group membership is managed in the next two sections titled ``Add a user to a group'' and ``Remove a user from a group''. Each section first contains a dropdown list of all users in Seave followed by either the groups they \textit{are not} in (for adding a user to a group) or the groups they \textit{are} in (for removing a user from a group). Select the user and group combination for the task you want to perform and the user will be added or removed from the group.
+
+The next section titled ``Change a user's password'' allows you to change any user's password. Select the user whose password you want to change from the dropdown and enter a new password into the box below. Pressing ``Change password'' will immediately change that user's password, make sure to give them the new password and store it securely!
+
+%------------------------------------------------
+
+\subsection{View Users in a Group}
+
+To interrogate current group memberships, the next section titled ``View all users in a group'' lets you select a group from the dropdown menu and view all users within it. The resulting table of users in the group includes the user's email address, whether they are an administrator, the time when they were added to the group and the time when they were added to Seave as a user.
+
+%------------------------------------------------
+
+\subsection{Manage Administrator Priveleges}
+
+The final two sections control administrator access to Seave. In the ``Make a user an administrator'' section, you can select a non-administrator user and make them an administrator. In the ``Remove administrator access'' section you can select an administrator user and remove their administrator access. You cannot remove the last administrator's access as there must be at least one administrator.
+
+%----------------------------------------------------------------------------------------
+%	GEMINI DATABASES
+%----------------------------------------------------------------------------------------
+
+\section{Managing \GEMINI Databases}
+
+Short variants (SNPs and Indels) are stored in \GEMINI databases within Seave. These databases are discrete .db files produced by \GEMINI and each belong to a group within Seave. The ``Database administration'' page allows administrators to manage the databases. The page can be found by clicking ``Data administration'' from the home page or by clicking ``Database administration'' after mousing over ``Databases'' in the top menu. 
+
+%------------------------------------------------
+
+\subsection{Add Database}
+
+One of the ways to import \GEMINI databases into Seave is via the ``Add a new database'' section. The requirements are a URL to the database (ending in .db) and a group to import the database into. For more information on this process see the \nameref{geminiImport} section.
+
+%------------------------------------------------
+
+\subsection{Delete Database}
+
+Databases can be deleted in the next section ``Delete a database''. This contains a dropdown list of all databases in all groups, select the one you wish to delete and press ``Delete database''. Note that deletion is immediate and permanent, \textbf{there is no way to restore a deleted database}. You will need to re-import any database that is accidentally deleted.
+
+%------------------------------------------------
+
+\subsection{Modify Database Pedigree Information with a PED File}
+
+The ``Annotate a database'' section allows you to select a database from the dropdown list and upload a .ped pedigree file to apply to it. The pedigree file must consist of 6 tab-separated columns in the following order:
+
+\begin{enumerate}
+	\item \textbf{Family name} --- to be displayed in Seave
+	\item \textbf{Sample name} --- must be the same as in the database
+	\item \textbf{0} --- normally used for father sample name but not used by Seave
+	\item \textbf{0} --- normally used for mother sample name but not used by Seave
+	\item \textbf{Gender} --- 1 for male, 2 for female and 3 for unknown
+	\item \textbf{Affected status} --- -9 for unknown, 1 for unaffected and 2 for affected
+\end{enumerate}
+
+This is an example of a pedigree file in this format:
+
+\begin{lstlisting}
+    NA12878Trio	NA12878	0	0	2	2
+    NA12878Trio	NA12891	0	0	1	1
+    NA12878Trio	NA12892	0	0	2	1
+\end{lstlisting}
+
+Seave will run the \GEMINI command \texttt{gemini annotate} to apply your pedigree file to the database. If this returns a non-zero exit code, Seave will report an error.
+
+%------------------------------------------------
+
+\subsection{Rename Database}
+
+The ``Rename a database'' section lets you select a database and enter a new filename for it. This filename must end in .db and not already exist in the group. The new filename will be immediately displayed on the databases page for all users who have access to it.
+
+%------------------------------------------------
+
+\subsection{Generate Database Summary}
+
+Seave automatically generates a variant counts summary when a database is imported using the API or via the ``Add a new database'' section. However, if a database is imported as a file, this report won't be generated and must be generated manually in the ``Re-generate a summary'' section. Select the database for which to generate the report and click ``Re-generate summary'' to begin the process. Generating the summary involves running a number of \GEMINI queries so can take quite some time for a large database with millions of variants. Seave will be unusable in your current browser once you start this process, switch to another browser to keep using it if needed.
+
+%------------------------------------------------
+
+\subsection{Move Database to Different Group}
+
+Databases within Seave must belong to one group. The ``Move database'' section allows you to reassign a database from one group to another. Select the current group and database from the dropdown and then select the group to move the database to and click ``Mode database'' to move it. This will immediately reassign the database and it will be visible and queryable to users in the new group. A database with the same filename must not already exist in the new group.
+
+%------------------------------------------------
+
+\subsection{View Annotation History}
+
+Seave contains a number of annotation databases (such as ClinVar) that are used to improve variant annotation. Advanced users will want to update these annotation databases as they improve over time (see the section on \nameref{updateAnnotations}). As part of the update process, each update should be logged in Seave to track the current version of each annotation and when it was updated. The ``View annotation history'' section lets you select an annotation from all of the annotation sources used in Seave and view the history of updates to that annotation. This is useful for auditing purposes, such as when you need to know what version of an annotation was used on a specific date.
+
+%----------------------------------------------------------------------------------------
+%	GBS DATA
+%----------------------------------------------------------------------------------------
+
+\section{Managing GBS Data}
+
+Variants affecting large parts of the genome such as CNVs, SVs, LoHs are stored in the Genome Block Store (GBS) within Seave. These are stored in a normalised schema in Seave's MySQL database --- also used for storing annotation databases, users/groups, gene lists, etc. The ``GBS Administration'' page allows administrators to manage GBS data. The page can be found by clicking ``GBS administration'' from the home page or by clicking ``GBS Administration'' after mousing over ``Databases'' in the top menu.
+
+\textit{Note: the GBS feature of Seave is the least developed and, as such, is not as feature-rich as the short variant filtration.}
+
+%------------------------------------------------
+
+\subsection{Adding GBS Data}
+
+One of the ways to import GBS data into Seave is via the ``Import genomic blocks'' section. As output files containing these events are generally small, you can directly upload them to Seave. For more information on this process see the \nameref{GBSImport} section.
+
+%------------------------------------------------
+
+\subsection{Deleting GBS Data}
+
+GBS data is stored in Seave linked to sample names only (i.e. not belonging to groups). The ``Delete genomic blocks'' section thus allows you to select a sample name with GBS data and view the methods for which GBS data has been imported. Select the sample-method combination you want to delete and click ``Delete blocks'' to remove it. Once the last method for a sample has been removed, the sample will no longer appear in the samples list.
+
+%----------------------------------------------------------------------------------------
+%	ADVANCED
+%----------------------------------------------------------------------------------------
+
+\section{Advanced}
+
+%------------------------------------------------
+
+\subsection{Installing Seave from the Source Code on a Private Server or Local Computer}\label{localSeaveInstallation}
+
+Seave is written in PHP and uses MySQL for its database and as such, it is meant to run in a LAMP (Linux, Apache, MySQL, PHP) stack. If you would like to run Seave on your own hardware rather than on AWS, you have two options. 
+
+The easier option is to download the AMI from AWS and run it as an image. This can be accomplished by:
+
+\begin{enumerate}
+\item Launch the AMI as an instance
+\item Take a snapshot of the instance
+\item Create a new EBS volume of the snapshot and attach it to the instance
+\item SSH download the entire volume using dd, e.g. \texttt{ssh ubuntu@<instance ip> "sudo dd if=/dev/xvdf | gzip -1 -" | dd of=seave-image.gz}
+\item Run the image as a virtual machine
+\end{enumerate}
+
+The more difficult option is to clone the Seave source code repository from \href{https://github.com/KCCG/seave}{GitHub} and then proceed to set up Apache, MySQL and PHP on a Linux or macOS machine. You will need to populate your MySQL server with each of the databases that Seave uses --- you can find the SQL files required to do so \href{https://github.com/KCCG/seave-databases-annotations}{in this repository} under the Database Structures folder. Make sure to install \GEMINI and \href{https://github.com/arq5x/bedtools2}{bedtools}, along with any other dependencies that are required to fix features that are broken. It's recommended to look at the file permissions and Apache/PHP configuration files in the AMI for making sure Seave has enough resources and is adequately secured.
+
+%------------------------------------------------
+
+\subsection{Viewing Variants in IGV}
+
+All variants reported by Seave should be manually validated using IGV as variant callers and aligners often get it wrong. To help with this, Seave has a ``Navigate in IGV" button below the results tables which, when clicked, brings up an ``IGV" button for each variant on the far right of the results table. If the user has an open IGV window open with data loaded, clicking this button will open a new browser tab which will load a URL in an \texttt{<iframe>} that will force IGV to navigate to the location of the variant, the browser tab is closed after a second. This should work with a default installation of IGV but if it doesn't, ensure that the user has ``Enable port 60151" ticked under the Advanced tab in the IGV preferences.
+
+%------------------------------------------------
+
+\subsection{Setting Up SSL}\label{settingUpSSL}
+
+By default, Seave is configured for SSL. The Seave AMI comes with a self-signed certificate which raises red flags in modern browsers and should be modified upon initial set-up of the server. The easiest way to do this is to obtain your own certificate from a trusted certificate authority and install it on your Seave server. To do this, copy the certificate file (ending in .pem) to \texttt{/etc/ssl/certs} and the key file (ending in .key) to \texttt{/etc/ssl/private}. Then, modify the following two lines in \texttt{/etc/apache2/sites-available/default-ssl.conf} to point to your certificate files:
+
+\begin{lstlisting}
+SSLCertificateFile /etc/ssl/certs/ssl-cert-snakeoil.pem
+SSLCertificateKeyFile /etc/ssl/private/ssl-cert-snakeoil.key
+\end{lstlisting}
+
+Restart apache with \texttt{sudo service apache2 restart} and the new certificate should be applied immediately.
+
+Alternatively, you may wish to use \href{https://letsencrypt.org}{Let's Encrypt} to obtain a free SSL certificate that can be automatically renewed by \href{https://certbot.eff.org}{certbot}. You can find guides for how to do this with Apache on their websites.
+
+%------------------------------------------------
+
+\subsection{Using a Separate \GEMINI Databases Volume}
+
+It's often a good idea to house \GEMINI databases on a different volume to the Seave webserver, such as on a separate EBS volume when using AWS. To do this, set up your volume and mount it on the webserver, then go to the config.ini file in the web root and modify the path in \texttt{db\_dir=} under the \texttt{[gemini]} heading to point to the mount point.
+
+%------------------------------------------------
+
+\subsection{Using a Separate MySQL Database Server}
+
+If you'd like to use a separate MySQL database server for Seave, such as an RDS server on AWS, go to the config.ini file in the web root and modify the particulars in \texttt{server=}, \texttt{user=} and \texttt{password=} under the \texttt{[mysql]} heading. If you do this, make sure that the latency between your webserver and MySQL server are as small as possible, do not use a MySQL server located on a different continent to the webserver!
+
+%------------------------------------------------
+
+\subsection{Automated Testing Using Selenium}
+
+The Seave code repository contains a 'test' folder containing a Selenium.pl Perl script for conducting automated end-to-end tests of Seave. The ``Testing Documentation.md" file in the same directory lists details for how to run automated tests in either a headless browser or locally. This code is hard coded to the test cases used for internal development so will need significant modification to be useful externally.
+
+%------------------------------------------------
+
+\subsection{Keeping Seave Up To Date Using Automated Deployments}
+
+If you'd like to keep Seave updated to make use of new features, you can use a product like Atlassian Bamboo to build Seave on a development server to be deployed to a production server. We use the following set of tasks on the public GitHub code base to build Seave:
+
+\begin{enumerate}
+\item Checkout the Seave code repository from \href{https://github.com/KCCG/seave}{GitHub}
+\item Tar the current deployment on the dev server to the home directory, delete the current deployment and recreate the web root with the correct permissions
+\item Tar and gzip the source code checkout and copy it to the development server 
+\item Extract the source code checkout to the web root and set permissions
+\item Overwrite the default config.ini with your own details
+\item Run tests
+\item Delete the new code and restore the previous deployment from the tar in the home directory to get back to where you started
+\end{enumerate}
+
+%------------------------------------------------
+
+\subsection{Updating Annotation Sources}\label{updateAnnotations}
+
+Seave contains a number of annotation sources for linking variants to observations and predictions of pathogenicity stored in databases and \textit{in silico} scores. As these databases and scores are constantly improving, they need to be periodically updated so Seave contains the most recent information. Annotation sources live in the MySQL database and are updated in a semi-automatic way using SQL files, a Perl script and a few MySQL queries. These files are provided for you in a separate Seave annotations repository \href{https://github.com/KCCG/seave-databases-annotations}{here}. You will need the correct download from the annotation source you are updating, as will be outlined in annotation-specific sections below. The general procedure is:
+
+\begin{enumerate}
+	\item SSH in to the webserver and run: \texttt{mysql -h localhost -P 3306 -u root -p < /path/to/<annotation>\_create\_database.sql} --- this will create a new temporary database with the correct structure of tables to house the annotation
+	\item Run the relevant Perl script on the annotation download file to import it into the new temporary database --- this is typically in the format of \texttt{perl /path/to/<annotation>.pl /path/to/<annotation download file> <db host> <db username> <db password>}
+	\item Once the script reports success, log in to the MySQL database and a run few queries to check that the new annotation is as expected with regards to the total number of entries and to check that a few specific well-known values are still present
+	\item Run the second SQL file ending in \texttt{<annotation>\_replace\_database.sql} in the same way as in the first step --- this will archive the current production annotation database into a backup ``\_OLD'' database set the new database as the one active in production
+	\item From the MySQL database, run a query to add the annotation update to the record of Seave's annotation updates --- this will bump the version of the annotation reported for all queries hereafter and on the ``Data Sources'' page and also add to the log of annotation updates for auditing purposes
+\end{enumerate}
+
+\subsubsection{OMIM}
+
+\textbf{Create the new temporary database}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/OMIM\_create\_database.sql}
+
+\textbf{Import the OMIM download file}
+
+\texttt{perl /path/to/OMIM.pl /path/to/genemap.txt <db host> <db username> <db password>}
+
+\textbf{Check for number of rows per OMIM table, new vs old}
+
+\begin{lstlisting}
+SELECT 
+	(SELECT COUNT(*) FROM OMIM.omim_disorders) AS CURRENT_omim_disorders_count,
+	(SELECT COUNT(*) FROM OMIM_NEW.omim_disorders) AS NEW_omim_disorders_count,
+	(SELECT COUNT(*) FROM OMIM.omim_disorders_to_omim_numbers) AS CURRENT_omim_disorders_to_omim_numbers_count,
+	(SELECT COUNT(*) FROM OMIM_NEW.omim_disorders_to_omim_numbers) AS NEW_omim_disorders_to_omim_numbers_count,
+	(SELECT COUNT(*) FROM OMIM.omim_genes) AS CURRENT_omim_genes_count,
+	(SELECT COUNT(*) FROM OMIM_NEW.omim_genes) AS NEW_omim_genes_count,
+	(SELECT COUNT(*) FROM OMIM.omim_number_to_gene) AS CURRENT_omim_number_to_gene_count,
+	(SELECT COUNT(*) FROM OMIM_NEW.omim_number_to_gene) AS NEW_omim_number_to_gene_count,
+	(SELECT COUNT(*) FROM OMIM.omim_numbers) AS CURRENT_omim_numbers_count,
+	(SELECT COUNT(*) FROM OMIM_NEW.omim_numbers) AS NEW_omim_numbers_count
+;
+\end{lstlisting}
+
+\textbf{Check the results for 2 very well known genes match}
+
+\begin{lstlisting}
+SELECT 
+	OMIM.omim_genes.gene_name, 
+	OMIM.omim_numbers.omim_number, 
+	OMIM.omim_numbers.omim_title, 
+	OMIM.omim_numbers.omim_status, 
+	OMIM.omim_disorders.omim_disorder 
+FROM 
+	OMIM.omim_numbers 
+INNER JOIN OMIM.omim_number_to_gene ON OMIM.omim_number_to_gene.omim_number = OMIM.omim_numbers.omim_number 
+INNER JOIN OMIM.omim_genes ON OMIM.omim_genes.gene_id = OMIM.omim_number_to_gene.gene_id 
+INNER JOIN OMIM.omim_disorders_to_omim_numbers ON OMIM.omim_disorders_to_omim_numbers.omim_number = OMIM.omim_numbers.omim_number 
+INNER JOIN OMIM.omim_disorders ON OMIM.omim_disorders_to_omim_numbers.disorder_id = OMIM.omim_disorders.disorder_id 
+WHERE 
+	OMIM.omim_genes.gene_name IN('BRCA1', 'BRCA2'); 
+
+SELECT 
+	OMIM_NEW.omim_genes.gene_name, 
+	OMIM_NEW.omim_numbers.omim_number, 
+	OMIM_NEW.omim_numbers.omim_title, 
+	OMIM_NEW.omim_numbers.omim_status, 
+	OMIM_NEW.omim_disorders.omim_disorder 
+FROM 
+	OMIM_NEW.omim_numbers 
+INNER JOIN OMIM_NEW.omim_number_to_gene ON OMIM_NEW.omim_number_to_gene.omim_number = OMIM_NEW.omim_numbers.omim_number 
+INNER JOIN OMIM_NEW.omim_genes ON OMIM_NEW.omim_genes.gene_id = OMIM_NEW.omim_number_to_gene.gene_id 
+INNER JOIN OMIM_NEW.omim_disorders_to_omim_numbers ON OMIM_NEW.omim_disorders_to_omim_numbers.omim_number = OMIM_NEW.omim_numbers.omim_number 
+INNER JOIN OMIM_NEW.omim_disorders ON OMIM_NEW.omim_disorders_to_omim_numbers.disorder_id = OMIM_NEW.omim_disorders.disorder_id 
+WHERE 
+	OMIM_NEW.omim_genes.gene_name IN('BRCA1', 'BRCA2');
+\end{lstlisting}
+
+\textbf{Archive and replace the current production version}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/OMIM\_replace\_production.sql}
+
+\textbf{Insert a row into the annotation database}
+
+\begin{lstlisting}
+INSERT INTO ANNOTATIONS.annotation_updates 
+	(annotation_id, version, update_method_id, update_time)
+VALUES (
+	(SELECT ANNOTATIONS.annotations.id FROM ANNOTATIONS.annotations WHERE ANNOTATIONS.annotations.name = 'OMIM'),
+	'<OMIM release date>',
+	(SELECT ANNOTATIONS.update_methods.id FROM ANNOTATIONS.update_methods WHERE ANNOTATIONS.update_methods.method_name = 'automatic'),
+	now()
+);
+\end{lstlisting}
+
+\textbf{If something goes wrong and old annotations need to be restored}
+
+\begin{lstlisting}
+RENAME TABLE OMIM_OLD.omim_disorders TO OMIM.omim_disorders, OMIM_OLD.omim_disorders_to_omim_numbers TO OMIM.omim_disorders_to_omim_numbers, OMIM_OLD.omim_genes TO OMIM.omim_genes, OMIM_OLD.omim_number_to_gene TO OMIM.omim_number_to_gene, OMIM_OLD.omim_numbers TO OMIM.omim_numbers;
+\end{lstlisting}
+
+\subsubsection{COSMIC}
+
+\textbf{Create the new temporary database}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/COSMIC\_create\_database.sql}
+
+\textbf{Import the COSMIC download files}
+
+\texttt{perl /path/to/COSMIC.pl /path/to/CosmicCodingMuts.vcf\\ /path/to/CosmicMutantExport.tsv <db host> <db username> <db password>}
+
+\textbf{Check for number of rows per COSMIC table, new vs old}
+
+\begin{lstlisting}
+SELECT 
+	(SELECT COUNT(*) FROM COSMIC.variants) AS CURRENT_variants,
+	(SELECT COUNT(*) FROM COSMIC_NEW.variants) AS NEW_variants,
+	(SELECT COUNT(*) FROM COSMIC.cosmic_numbers) AS CURRENT_cosmic_numbers,
+	(SELECT COUNT(*) FROM COSMIC_NEW.cosmic_numbers) AS NEW_cosmic_numbers,
+	(SELECT COUNT(*) FROM COSMIC.cosmic_number_to_variant) AS CURRENT_cosmic_number_to_variant,
+	(SELECT COUNT(*) FROM COSMIC_NEW.cosmic_number_to_variant) AS NEW_cosmic_number_to_variant
+;
+\end{lstlisting}
+
+\textbf{Check the results for 2 variants match}
+
+\begin{lstlisting}
+SELECT 
+	COSMIC.variants.chr,
+	COSMIC.variants.pos,
+	COSMIC.variants.ref,
+	COSMIC.variants.alt,
+	COSMIC.cosmic_numbers.cosmic_number,
+	COSMIC.cosmic_numbers.cosmic_count,
+	COSMIC.cosmic_numbers.cosmic_primary_site,
+	COSMIC.cosmic_numbers.cosmic_primary_histology
+FROM 
+	COSMIC.variants
+INNER JOIN COSMIC.cosmic_number_to_variant ON COSMIC.cosmic_number_to_variant.variant_id = COSMIC.variants.id 
+INNER JOIN COSMIC.cosmic_numbers ON COSMIC.cosmic_numbers.cosmic_number = COSMIC.cosmic_number_to_variant.cosmic_number 
+WHERE 
+	chr = '7' AND pos = '140453136' AND ref = 'A' AND alt = 'T'
+;
+
+SELECT 
+	COSMIC_NEW.variants.chr,
+	COSMIC_NEW.variants.pos,
+	COSMIC_NEW.variants.ref,
+	COSMIC_NEW.variants.alt,
+	COSMIC_NEW.cosmic_numbers.cosmic_number,
+	COSMIC_NEW.cosmic_numbers.cosmic_count,
+	COSMIC_NEW.cosmic_numbers.cosmic_primary_site,
+	COSMIC_NEW.cosmic_numbers.cosmic_primary_histology
+FROM 
+	COSMIC_NEW.variants
+INNER JOIN COSMIC_NEW.cosmic_number_to_variant ON COSMIC_NEW.cosmic_number_to_variant.variant_id = COSMIC_NEW.variants.id 
+INNER JOIN COSMIC_NEW.cosmic_numbers ON COSMIC_NEW.cosmic_numbers.cosmic_number = COSMIC_NEW.cosmic_number_to_variant.cosmic_number 
+WHERE 
+	chr = '7' AND pos = '140453136' AND ref = 'A' AND alt = 'T'
+;
+\end{lstlisting}
+
+\textbf{Archive and replace the current production version}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/COSMIC\_replace\_production.sql}
+
+\textbf{Insert a row into the annotation database}
+
+\begin{lstlisting}
+INSERT INTO ANNOTATIONS.annotation_updates 
+	(annotation_id, version, update_method_id, update_time)
+VALUES (
+	(SELECT ANNOTATIONS.annotations.id FROM ANNOTATIONS.annotations WHERE ANNOTATIONS.annotations.name = 'COSMIC'),
+	'<COSMIC version>',
+	(SELECT ANNOTATIONS.update_methods.id FROM ANNOTATIONS.update_methods WHERE ANNOTATIONS.update_methods.method_name = 'automatic'),
+	now()
+);
+\end{lstlisting}
+
+\subsubsection{MITOMAP}
+
+\textbf{Create the new temporary database}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/MITOMAP\_create\_database.sql}
+
+\textbf{Import the MITOMAP download file}
+
+\texttt{perl /path/to/MITOMAP.pl /path/to/disease.vcf /path/to/polymorphisms.vcf <db host> <db username> <db password>}
+
+\textbf{Check for number of rows, new vs old}
+
+\begin{lstlisting}
+SELECT 
+	(SELECT COUNT(*) FROM MITOMAP.mitomap) AS CURRENT\_mitomap_count,
+	(SELECT COUNT(*) FROM MITOMAP\_NEW.mitomap) AS NEW\_mitomap_count
+;
+\end{lstlisting}
+
+\textbf{Check the results for 2 variants match}
+
+\begin{lstlisting}
+SELECT * FROM MITOMAP.mitomap WHERE chr = 'MT' AND pos = '961' AND ref = 'T' AND alt = 'C';
+
+SELECT * FROM MITOMAP_NEW.mitomap WHERE chr = 'MT' AND pos = '961' AND ref = 'T' AND alt = 'C';
+\end{lstlisting}
+
+\textbf{Archive and replace the current production version}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/MITOMAP\_replace\_production.sql}
+
+\textbf{Insert a row into the annotation database}
+
+\begin{lstlisting}
+INSERT INTO ANNOTATIONS.annotation_updates 
+	(annotation_id, version, update_method_id, update_time)
+VALUES (
+	(SELECT ANNOTATIONS.annotations.id FROM ANNOTATIONS.annotations WHERE ANNOTATIONS.annotations.name = 'MITOMAP'),
+	'<MITOMAP release date>',
+	(SELECT ANNOTATIONS.update_methods.id FROM ANNOTATIONS.update_methods WHERE ANNOTATIONS.update_methods.method_name = 'automatic'),
+	now()
+);
+\end{lstlisting}
+
+\subsubsection{RVIS}
+
+\textbf{Create the new temporary database}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/RVIS\_create\_database.sql}
+
+\textbf{Import the RVIS download file}
+
+\texttt{perl /path/to/RVIS.pl /path/to/RVIS.txt <db host> <db username> <db password>}
+
+\textbf{Check for number of rows, new vs old}
+
+\begin{lstlisting}
+SELECT 
+	(SELECT COUNT(*) FROM RVIS.rvis) AS CURRENT_RVIS_count,
+	(SELECT COUNT(*) FROM RVIS_NEW.rvis) AS NEW_RVIS_count
+;
+\end{lstlisting}
+
+\textbf{Check the results for 2 genes match}
+
+\begin{lstlisting}
+SELECT * FROM RVIS.rvis WHERE gene = 'TET2';
+
+SELECT * FROM RVIS_NEW.RVIS WHERE gene = 'TET2';
+\end{lstlisting}
+
+\textbf{Archive and replace the current production version}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/RVIS\_replace\_production.sql}
+
+\textbf{Insert a row into the annotation database}
+
+\begin{lstlisting}
+INSERT INTO ANNOTATIONS.annotation_updates 
+	(annotation_id, version, update_method_id, update_time)
+VALUES (
+	(SELECT ANNOTATIONS.annotations.id FROM ANNOTATIONS.annotations WHERE ANNOTATIONS.annotations.name = 'RVIS'),
+	'<RVIS release version/date>',
+	(SELECT ANNOTATIONS.update_methods.id FROM ANNOTATIONS.update_methods WHERE ANNOTATIONS.update_methods.method_name = 'automatic'),
+	now()
+);
+\end{lstlisting}
+
+\subsubsection{ClinVar}
+
+\textbf{Create the new temporary database}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/CLINVAR\_create\_database.sql}
+
+\textbf{Import the ClinVar download file}
+
+\texttt{perl /path/to/CLINVAR.pl /path/to/clinvar\_<date>.vcf <db host> <db username> <db password>}
+
+\textbf{Check for number of rows, new vs old}
+
+\begin{lstlisting}
+SELECT 
+	(SELECT COUNT(*) FROM CLINVAR.clinvar) AS CURRENT_clinvar_count,
+	(SELECT COUNT(*) FROM CLINVAR_NEW.clinvar) AS NEW_clinvar_count
+;
+\end{lstlisting}
+
+\textbf{Check the results for 2 variants match}
+
+\begin{lstlisting}
+SELECT 
+	CLINVAR.clinvar.chr,
+	CLINVAR.clinvar.position,
+	CLINVAR.clinvar.ref,
+	CLINVAR.clinvar.alt,
+	CLINVAR.clinvar.clinvar_rs,
+	CLINVAR.clinvar.clinsig,
+	CLINVAR.clinvar.clintrait
+FROM 
+	CLINVAR.clinvar 
+WHERE 
+	CLINVAR.clinvar.chr = '1' AND CLINVAR.clinvar.position = '201331068' AND CLINVAR.clinvar.ref = 'A' AND CLINVAR.clinvar.alt = 'G'
+;
+
+SELECT 
+	CLINVAR_NEW.clinvar.chr,
+	CLINVAR_NEW.clinvar.position,
+	CLINVAR_NEW.clinvar.ref,
+	CLINVAR_NEW.clinvar.alt,
+	CLINVAR_NEW.clinvar.clinvar_rs,
+	CLINVAR_NEW.clinvar.clinsig,
+	CLINVAR_NEW.clinvar.clintrait
+FROM 
+	CLINVAR_NEW.clinvar 
+WHERE 
+	CLINVAR_NEW.clinvar.chr = '1' AND CLINVAR_NEW.clinvar.position = '201331068' AND CLINVAR_NEW.clinvar.ref = 'A' AND CLINVAR_NEW.clinvar.alt = 'G'
+;
+\end{lstlisting}
+
+\textbf{Archive and replace the current production version}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/CLINVAR\_replace\_production.sql}
+
+\textbf{Insert a row into the annotation database}
+
+\begin{lstlisting}
+INSERT INTO ANNOTATIONS.annotation_updates 
+	(annotation_id, version, update_method_id, update_time)
+VALUES (
+	(SELECT ANNOTATIONS.annotations.id FROM ANNOTATIONS.annotations WHERE ANNOTATIONS.annotations.name = 'ClinVar'),
+	'<ClinVar release date>',
+	(SELECT ANNOTATIONS.update_methods.id FROM ANNOTATIONS.update_methods WHERE ANNOTATIONS.update_methods.method_name = 'automatic'),
+	now()
+);
+\end{lstlisting}
+
+\subsubsection{COSMIC CGC}
+
+\textbf{Create the new temporary database}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/COSMIC\_CGC\_create\_database.sql}
+
+\textbf{Import the COSMIC CGC download file}
+
+\texttt{perl /path/to/COSMIC\_CGC.pl /path/to/<COSCMIC CGC export>.tsv <db host> <db username> <db password>}
+
+\textbf{Check for number of rows, new vs old}
+
+\begin{lstlisting}
+SELECT 
+	(SELECT COUNT(*) FROM COSMIC_CGC.cosmic_cgc) AS CURRENT_cosmic_cgc_count,
+	(SELECT COUNT(*) FROM COSMIC_CGC_NEW.cosmic_cgc) AS NEW_cosmic_cgc_count
+;
+\end{lstlisting}
+
+\textbf{Check the results for 2 genes match}
+
+\begin{lstlisting}
+SELECT * FROM COSMIC_CGC.cosmic_cgc WHERE gene = 'BRCA1';
+
+SELECT * FROM COSMIC_CGC_NEW.cosmic_cgc WHERE gene = 'BRCA1';
+\end{lstlisting}
+
+\textbf{Archive and replace the current production version}
+
+\texttt{mysql -h <db host> -P 3306 -u root -p < /path/to/COSMIC\_CGC\_replace\_production.sql}
+
+\textbf{Insert a row into the annotation database}
+
+\begin{lstlisting}
+INSERT INTO ANNOTATIONS.annotation_updates 
+	(annotation_id, version, update_method_id, update_time)
+VALUES (
+	(SELECT ANNOTATIONS.annotations.id FROM ANNOTATIONS.annotations WHERE ANNOTATIONS.annotations.name = 'COSMIC CGC'),
+	'<COSMIC CGC release date>',
+	(SELECT ANNOTATIONS.update_methods.id FROM ANNOTATIONS.update_methods WHERE ANNOTATIONS.update_methods.method_name = 'automatic'),
+	now()
+);
+\end{lstlisting}
+
+%------------------------------------------------
+
+\subsection{Seave Logging}
+
+Seave logs all user interactions where either a state change occurs (e.g. adding, removing or changing something) or a query is performed. This allows access auditing/statistics, debugging issues and interrogation of malicious events. Every event is logged with the ID and email of the user who performed it, a description of the event with relevant details, the IP address of the user and the time when the event occurred. 
+
+This logging occurs to Seave's MySQL \texttt{LOGGING} database in the table \texttt{website\_events}. There is no interface for viewing these logs within Seave itself so you will need to run a database query by connecting to the MySQL database directly. If your MySQL database is on the same server as the webserver (e.g. if you used the AMI), SSH into the webserver and connect to the MySQL database with \texttt{mysql -h localhost -P 3306 -u root -p}, otherwise connect to the MySQL database server directly with the same command but with ``localhost'' replaced with the URL/IP of your server. Once connected, execute the following query to get the latest 100 events:
+
+\begin{lstlisting}
+SELECT * FROM LOGGING.website_events ORDER BY id DESC LIMIT 100;
+\end{lstlisting}
+
+Further to the above, Seave also stores the results of all queries. When a \GEMINI or GBS query is executed, the results are saved to a .tsv file; all the results pages do is read this TSV file and display it in a table. This is why sending the URL from the results page to someone else will mean they can see the the same results but can't query the database without logging in. You can find the query history by connecting to the webserver via SSH and navigating to \texttt{/var/www/html/temp}. Here, you will see a large number of files starting with the year, month, day and time of the query and ending in \texttt{*.tsv}, \texttt{*.gem} and \texttt{*.err}. The first is the variants results file for the query, the second is the \GEMINI command executed if the query was for short variants and the third is for any errors that occurred. You may want to periodically tar/gzip these and archive them so they don't take up too much space.
+
+%------------------------------------------------
+
+\subsection{Gene Name Validation}\label{geneNameValidation}
+
+When genes are added to lists (see the \nameref{addGenestoLists} section), or when a query is performed with a custom gene list, Seave will validate the genes entered against an internal list of valid genes. The purpose of this is to prevent genes being searched that cannot be annotated as impacted in the \GEMINI databases of variants. The process of creating the \GEMINI database is going to dictate the genes that can be annotated, specifically, the upstream annotation of your VCF file by one of the two supported tools Variant Effect Predictor (VEP) or snpEff. Different versions of these tools will use different gene names for annotation so it will be up to you to determine the list used by your bioinformatics pipeline and add the same list to your Seave installation.
+
+The gene list Seave uses to validate genes is located in:
+
+\texttt{/var/www/html/assets/validation\_gene\_list.txt}
+
+By default, Seave ships with the Ensembl 75 list. To change this list, copy a new text file to the same location in your Seave installation. Each gene should be on a separate line with no other whitespace.
+
+%----------------------------------------------------------------------------------------
+
+\end{document}
