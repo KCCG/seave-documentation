@@ -43,7 +43,7 @@
 \newcommand{\GEMINI}{\href{https://gemini.readthedocs.io}{GEMINI} } % Custom command for referring to GEMINI
 \newcommand{\titlepageguidename}{Usage Guide} % Custom command for the guide name on the title page
 
-\newcommand{\version}{v1.1} % Document version
+\newcommand{\version}{v1.2} % Document version
 
 %----------------------------------------------------------------------------------------
 
@@ -203,7 +203,9 @@ Block variants are stored by sample name and the method used to call them and ar
 
 \subsection{GBS Query Page}
 
-The GBS query page is similar to the \nameref{familyAnalysisSelection} page. It first shows you the \GEMINI database you selected for query from the Databases page. You can then select a family within the database for restricting your search to samples within that family (families are set on the \nameref{modifyPedigree} page) or select ``Entire dataset" to query across all samples with GBS data. If you select a family, you will see the sample names, affected statuses and GBS methods for the samples within it. Some analyses can only be conducted when specific types of GBS data have been imported, this will be indicated by the analysis type box being red and unselectable.
+The GBS query page is similar to the \nameref{familyAnalysisSelection} page. It first shows you the \GEMINI database you selected for query from the Databases page. You can then select a family within the database for restricting your search to samples within that family (families are set on the \nameref{modifyPedigree} page) or select ``Entire dataset" to query across all samples with GBS data. If you select a family, you will see the sample names, affected statuses and GBS methods for the samples within it. Some analyses can only be conducted when specific types of GBS data have been imported, this will be indicated by the analysis type box being red and unselectable if there is insufficient data available.
+
+Some analysis types allow you to restrict the copy number value of variants returned to exclude those with copy numbers too similar to the normal human copy number of 2. You may do this by setting the upper copy number value for what you will accept as a deletion\footnote{For example, setting to 1.5 means you wish to see variants called at a copy number of 1.5 or less as deletions} and a lower copy number value for gains. To return all variants, set both of these values to 2.
 
 Below is a description of each analysis type and the results you can expect.
 
@@ -237,9 +239,9 @@ The results are organised where each row is a separate set of coordinates shared
 
 \subsection{SV Fusions Analysis Type}
 
-Structural variants such as inversions and translocations are stored as 2 linked blocks in the GBS, one for each break point. The assumption is that the internal genomic code is not affected by the event, but only the break points themselves. This analysis will return all structural variant blocks where one or both of the break points of the event are inside a gene. You can select one or more gene lists and enter a custom gene list to restrict your search to specific genes, or leave the query options blank to search the entire genome.
+Some structural variants have the ability to physically fuse two distal regions of the genome. When this occurs near or inside a gene, it has the potential to disrupt gene function or alter transcription frequency. The SV fusions analysis type attempts to discover these fusions by finding all deletions, inversions, translocations and tandem duplications where either (or both) of the breakpoints is inside a gene. You can select one or more gene lists and enter a custom gene list to restrict your search to specific genes, or leave the query options blank to search the entire genome.
 
-Results first show the event type, then information for the first break point block (``Block1 ...'' columns), followed by information for the second break point block (``Block2 ...'' columns). The gene columns let you quickly see which gene or genes have been affected by the event and the annotations for each block can be found in the .tsv download file for determining whether the event is real.
+Results are per each combination of fusion pair, sample and method, and clearly indicate the gene(s) being fused as ``GENE1-GENE2" pairs under the ``Gene(s)" column. A value of ``GENE1-." in this column means GENE1 was fused into an intergenic location. The coordinates of each breakpoint are available for verification and further investigation purposes and include the inherent imprecision in calling these variant types if this imprecision was supplied by the variant caller. All annotations can be found in the .tsv download file for further determining whether an event is real.
 
 %----------------------------------------------------------------------------------------
 
