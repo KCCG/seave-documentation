@@ -43,7 +43,7 @@
 \newcommand{\GEMINI}{\href{https://gemini.readthedocs.io}{GEMINI} } % Custom command for referring to GEMINI
 \newcommand{\titlepageguidename}{Usage Guide} % Custom command for the guide name on the title page
 
-\newcommand{\version}{v1.2} % Document version
+\newcommand{\version}{v1.3} % Document version
 
 %----------------------------------------------------------------------------------------
 
@@ -205,7 +205,7 @@ Block variants are stored by sample name and the method used to call them and ar
 
 The GBS query page is similar to the \nameref{familyAnalysisSelection} page. It first shows you the \GEMINI database you selected for query from the Databases page. You can then select a family within the database for restricting your search to samples within that family (families are set on the \nameref{modifyPedigree} page) or select ``Entire dataset" to query across all samples with GBS data. If you select a family, you will see the sample names, affected statuses and GBS methods for the samples within it. Some analyses can only be conducted when specific types of GBS data have been imported, this will be indicated by the analysis type box being red and unselectable if there is insufficient data available.
 
-Some analysis types allow you to restrict the copy number value of variants returned to exclude those with copy numbers too similar to the normal human copy number of 2. You may do this by setting the upper copy number value for what you will accept as a deletion\footnote{For example, setting to 1.5 means you wish to see variants called at a copy number of 1.5 or less as deletions} and a lower copy number value for gains. To return all variants, set both of these values to 2.
+Further filtration options are available and these will automatically appear if they are relevant for the analysis type you have selected. The first such filter allows you to restrict the copy number value of variants returned to exclude those with copy numbers too similar to the normal human copy number of 2. You may do this by setting the upper copy number value for what you will accept as a deletion\footnote{For example, setting to 1.5 means you wish to see variants called at a copy number of 1.5 or less as deletions} and a lower copy number value for gains. To return all variants, set both of these values to 2. The second filter allows you to ignore blocks with a block size below a specified value which allows you to exclude blocks where you believe the variant caller does not have the precision to accurately identify a variant. Finally, the ``Exclude Failed Variants" filter is on by default and will exclude any block that has an ``FT" or ``FILTER" annotation that has a value that is not ``PASS".
 
 Below is a description of each analysis type and the results you can expect.
 
