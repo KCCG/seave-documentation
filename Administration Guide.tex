@@ -21,9 +21,6 @@
 
 \usepackage{listings} % For code snippets
 
-\usepackage{graphicx} % Required for inserting images
-\graphicspath{ {images/} } % Paths to where images are stored
-
 \lstset{
 	numbers=left,
 	numbersep=6pt,
@@ -36,6 +33,9 @@
 	aboveskip=\baselineskip % Whitespace before the listing
 }
 
+\usepackage{graphicx} % Required for inserting images
+\graphicspath{{images/}} % Paths to where images are stored
+
 \setlength{\parindent}{0pt} % Stop paragraph indentation
 \setlength{\parskip}{6pt} % Spacing between paragraphs
 
@@ -44,11 +44,13 @@
 \newcommand{\GEMINI}{\href{https://gemini.readthedocs.io}{GEMINI} } % Custom command for referring to GEMINI
 \newcommand{\titlepageguidename}{Administration Guide} % Custom command for the guide name on the title page
 
-\newcommand{\version}{v1.0} % Document version
+\newcommand{\version}{v1.1} % Document version
 
 %----------------------------------------------------------------------------------------
 
 \begin{document}
+
+\renewcommand{\thepage}{\roman{page}} % Roman numerals for page counter
 
 %----------------------------------------------------------------------------------------
 %	TITLE PAGE
@@ -61,6 +63,7 @@
 %----------------------------------------------------------------------------------------
 
 \newpage
+\thispagestyle{empty}
 
 ~
 \vfill
@@ -84,6 +87,12 @@
 %----------------------------------------------------------------------------------------
 
 \tableofcontents % Print the ToC
+
+%----------------------------------------------------------------------------------------
+
+\clearpage
+\renewcommand{\thepage}{\arabic{page}} % Arabic numerals for page counter
+\setcounter{page}{1} % Reset page numbering
 
 %----------------------------------------------------------------------------------------
 %	ABOUT & ACKNOWLEDGEMENTS PAGE
@@ -397,6 +406,124 @@ GBS data is stored in Seave linked to sample names only (i.e. not belonging to g
 %----------------------------------------------------------------------------------------
 
 \section{Advanced}
+
+%------------------------------------------------
+
+\subsection{Going From VCF to GEMINI Database for Import Into Seave}
+
+Seave manages \GEMINI databases to store and query SNV and Indel variants. For a number of reasons, we have opted to decouple the variant annotation and \GEMINI database creation from Seave:
+
+\begin{itemize}
+	\item We wanted to handle WGS-sized data, which means >3Gb VCF files that are cumbersome to upload via a webpage.
+	\item Variant annotation using VEP and \GEMINI is computationally expensive for WGS data, where we typically use 16- to 32-core servers. We felt that it makes sense to keep this heavy compute as part of the production genomics pipeline.
+	\item We have a production analysis pipeline, so adding an analysis module at the end to push data into Seave was straightforward.
+\end{itemize}
+
+To make it easier to adopt Seave, this section will go through the process of starting with a VCF file through to creating a \GEMINI database that is ready for import into Seave.
+
+We use VEP and the b37d5 (1000 genomes + decoy) reference genome in our production pipeline so the process outlined here will follow this. Other options may work too, but this is what works well for us.
+
+\subsubsection{VCF Creation}
+
+\textbf{Germline DNA} --- VCF files are created by a Best Practices (GATK) production pipeline. Our primary germline variant caller is GATK HaplotypeCaller v3.3. We use gVCF mode, so each sample has a g.vcf.gz extension. These are joint-called into cohorts using GATK GenotypeGVCFs. For WGS data we then apply VQSR.
+
+\textbf{Somatic DNA} --- Our primary somatic variant caller is Strelka2. By default, the VCF files are incompatible with \GEMINI as they lack the required GT field, the optional AD, DP, GQ fields, and always name the samples NORMAL and TUMOR. We have a script to post-process Strelka VCF files to make them compatible with \GEMINI and provide fields that are useful for Seave. See scripts/strelka\_add\_to\_FORMAT.py in the repository for this guide. To combine multiple Strelka VCFs for multi-sample or cohort analysis of somatic variants, we use GATK CombineVariants
+
+\subsubsection{VCF Decomposition and Normalisation}
+
+Multi-allelic variants (e.g. REF: A, ALT: T,C) are output by most variant callers, but downstream tools often don't handle them well. The problem lies in having to deal with conflicting or extra data for each allele. The standard solution is to first decompose variants such that each of the multiple alleles becomes a separate variant sharing the same position and reference allele. The next step is to normalise these decomposed variants to adjust the position and reference allele if needed (usually in the case of SNP+Indel multi-allelic variants).
+
+We use the tool \href{https://genome.sph.umich.edu/wiki/Vt}{Vt} (v0.5) for variant decomposition and normalisation, following the process documented in the \GEMINI documentation \href{https://gemini.readthedocs.io/en/latest/#new-gemini-workflow}{here}. \GEMINI expects variants to be decomposed and normalised and will issue a warning if it finds any that aren't. The reason for this is that the annotations \GEMINI adds to variants have been decomposed and normalised to enable maximum ability to annotate variants.
+
+We use the following command for Vt:
+
+\begin{lstlisting}[language=bash]
+zcat ~/in/vcfgz/$input_filename | sed 's/ID=AD,Number=./ID=AD,Number=R/'  | vt decompose -s - | vt normalize -r genome.fa - | vt sort -o $output_file -
+
+tabix -p vcf $output_file
+\end{lstlisting}
+
+\subsubsection{VCF Genomic Impact Annotation}
+
+We use \href{https://asia.ensembl.org/info/docs/tools/vep/script/vep_download.html}{Variant Effect Predictor} (VEP) for annotating variants. Seave works well with variants annotated by VEP v74, v79 and v87; presumably the intermediate and following versions work too.
+
+There is a \href{https://github.com/Ensembl/ensembl-vep}{newer version of VEP} which we have not thoroughly tested, so we recommend using the older \href{https://asia.ensembl.org/info/docs/tools/vep/script/vep_download.html}{ensembl-tools-vep}. See scripts/Makefile.vep87 in the repository for this guide for directions on installing VEP 87 along with the required plugins to make the most of Seave.
+
+We do not find the upstream\_gene\_variant and downstream\_gene\_variant annotations useful for coding or regulatory variant analyses, so we delete them. See scripts/filter\_vep.py in the repository for this guide for how this is done.
+
+To run VEP on a VCF we use the following parameters:
+
+\begin{lstlisting}[language=bash]
+# Annotate the VCF with VEP
+/vep/variant_effect_predictor.pl -i ./in/vcfgz/* --species homo_sapiens --vcf -o output.vcf --stats_file "$vcfgz_prefix".vep.html --offline --fork `nproc` --no_progress --canonical --polyphen b --sift b --symbol --numbers --terms so --biotype --total_length --plugin LoF,human_ancestor_fa:false --fields Consequence,Codons,Amino_acids,Gene,SYMBOL,Feature,EXON,PolyPhen,SIFT,Protein_position,BIOTYPE,CANONICAL,Feature_type,cDNA_position,CDS_position,Existing_variation,DISTANCE,STRAND,CLIN_SIG,LoF_flags,LoF_filter,LoF,RadialSVM_score,RadialSVM_pred,LR_score,LR_pred,CADD_raw,CADD_phred,Reliability_index,HGVSc,HGVSp --fasta /vep/homo_sapiens/87_GRCh37/Homo_sapiens.GRCh37.75.dna.primary_assembly.fa.gz --hgvs --shift_hgvs 1 --dir /vep
+
+# VEP79 introduced spaces into the INFO field, for the sift & polyphen2 annotations. fix them.
+perl -ne 'if ($_ !~ /^#/) { $_ =~ s/ /_/g; print $_; } else { print $_; }' output.vcf > output.clean.vcf
+mv output.clean.vcf output.vcf
+
+# Replace upstream_gene_variant/downstream_gene_variant with intergenic_variant
+python ./filter_vep.py --vcf output.vcf | vcf-sort | bgzip > output.sorted.vcf.gz
+tabix -p vcf output.sorted.vcf.gz
+\end{lstlisting}
+
+\subsubsection{Creating a GEMINI Database}
+
+\GEMINI installation is straightforward from the \href{https://gemini.readthedocs.io/en/latest/#new-installation}{documentation}. We have tested Seave extensively with v0.11.*, and more recently with 0.17.*, 0.18.* and 0.19.1.
+
+Databases are created from annotated VCF files with:
+
+\begin{lstlisting}[language=bash]
+gemini load -v "$vcfgz_path" --cores `nproc` --skip-gerp-bp -t VEP out.db
+\end{lstlisting}
+
+\subsubsection{Automatically Importing Databases or GBS Variants Into Seave}
+
+Our production pipeline runs on \href{https://www.dnanexus.com}{DNA Nexus} and we have created an app there that allows the import of \GEMINI databases and GBS (long) variants into any group on multiple Seave servers.
+
+The logic of the app for importing \GEMINI databases can be distilled to:
+
+\begin{lstlisting}[language=bash]
+TOKEN=xxxxxxxxxxxxxxx
+MD5=$(md5sum "$filename" | cut -d" " -f1)
+SEAVE="https://www.seave.bio"
+SEAVE_URL="${SEAVE}/dx_import.php?token=${TOKEN}&url=${DX_URL}&md5=${MD5}"
+SEAVE_URL="${SEAVE_URL}&import_type=gemini_db"
+SEAVE_URL="${SEAVE_URL}&group=${group}"
+OUTCOME=$(curl '-s' '-S' '-L' "${SEAVE_URL}")
+echo "Seave reported: $OUTCOME"
+\end{lstlisting}
+
+The logic of the app for importing GBS (long) variants can be distilled to:
+
+\begin{lstlisting}[language=bash]
+TOKEN=xxxxxxxxxxxxxxx
+MD5=$(md5sum "$filename" | cut -d" " -f1)
+SEAVE="https://www.seave.bio"
+SEAVE_URL="${SEAVE}/dx_import.php?token=${TOKEN}&url=${DX_URL}&md5=${MD5}"
+
+all_methods=(CNVnator LUMPY Sequenza ROHmer VarpipeSV Manta CNVkit)
+if [[ ! " ${all_methods[@]} " =~ " ${method} " ]]; then
+	echo "A valid 'method' must be specified if data is being imported into the GBS."
+	exit 1
+fi
+
+# VCF files contain the sample names in the header. Many CNV/SV callers produce TSV files, so you also need to specify the sample name.
+sample_name_methods=(CNVnator Sequenza ROHmer CNVkit)
+
+# If the method specified doesn't include a sample name in the file to import, make sure the user specified one
+if [[ " ${sample_name_methods[@]} " =~ " ${method} " ]]; then
+	if [[ "$sample_name" == "" ]]; then
+		echo "You must specify a sample name for GBS import methods that don't include a sample name in the file to import"
+		exit 1
+	fi
+	SEAVE_URL="${SEAVE_URL}&sample_name=${sample_name}"
+fi
+
+SEAVE_URL="${SEAVE_URL}&import_type=GBS&method=${method}"
+SEAVE_URL="${SEAVE_URL}&group=${group}"
+OUTCOME=$(curl '-s' '-S' '-L' "${SEAVE_URL}")
+echo "Seave reported: $OUTCOME"
+\end{lstlisting}
 
 %------------------------------------------------
 
